@@ -1,0 +1,94 @@
+let
+    Origen = Sql.Database("KOFMXAZMND01", "DATAKOF_MX_USERS", [Query="USE DATAKOF_MX_USERS #(lf)#(lf)SELECT DISTINCT#(lf)        c.[Num_Cliente] AS ID_SAP,#(lf)#(tab)c.[NombreCliente] AS NOMBRE,#(lf)        c.[Cadena] AS CADENA,#(lf)#(tab)c.[Coord_X] AS LONGITUD,#(lf)        c.[DescGEC] AS GEC_SAP,#(lf)#(tab)c.[Coord_Y] AS LATITUD,#(lf)#(tab)c.[ModalidadVentas] AS MODALIDAD,#(lf)#(tab)c.[Descripción Estado] AS ZONA,#(lf)#(tab)c.[Zona Ventas   U O ] AS UO,#(lf)#(tab)c2.[_NIVEL_ESTRATEGICO_1] AS CANAL,#(lf)#(tab)c2.[_NIVEL_ESTRATEGICO_2] AS GRUPO_RM1,#(lf)        c2.[_NIVEL_ESTRATEGICO_3] AS NIVEL_ESTRATEGICO,#(lf)#(tab)c2.[CANAL_KOF] AS CANAL_KOF_KEY,#(lf)#(tab)c2.[CANAL_KOF_DESC] AS CANAL_KOF_DESC,#(lf)#(tab)c2.[GRUPO_CANAL_DESC] AS GRUPO_CANAL_SAP,#(lf)    -- ZPV Columns#(lf)    ZPV.[MétodoVenta] AS MTDO_VTA_ZPV,#(lf)    ZPV.[Ruta] AS RUTA_ZPV,#(lf)    ZPV.[Frecuencia de Visita] AS FV_ZPV,#(lf)    ZPV.[Ritmo] AS RITMO_ZPV,#(lf)    -- ZTK Columns#(lf)    ZTK.[MétodoVenta] AS MTDO_VTA_ZTK,#(lf)    ZTK.[Ruta] AS RUTA_ZTK,#(lf)    ZTK.[Frecuencia de Visita] AS FV_ZTK,#(lf)    ZTK.[Ritmo] AS RITMO_ZTK,#(lf)#(tab)-- ZJV Columns#(lf)    ZJV.[MétodoVenta] AS MTDO_VTA_ZJV,#(lf)    ZJV.[Ruta] AS RUTA_ZJV,#(lf)    ZJV.[Frecuencia de Visita] AS FV_ZJV,#(lf)    ZJV.[Ritmo] AS RITMO_ZJV,#(lf)#(tab)-- Reparto#(lf)#(tab)c.[Centro Suministro] AS CENTRO_SUMINISTRO,#(lf)#(tab)c.[ZonaTransporte] AS RUTA_REPARTO#(lf)#(lf)FROM #(lf)    [DATAKOF_MX_USERS].[kof].[MEX_KOF_SAP_CLIENTE_FULL] c#(lf)    -- ZPV Join#(lf)    LEFT JOIN [DATAKOF_MX_USERS].[kof].[MEX_KOF_SAP_CLIENTE_FULL] ZPV#(lf)        ON c.[Num_Cliente] = ZPV.[Num_Cliente]#(lf)        AND ZPV.[Tipo Plan de Visita] = 'ZPV'#(lf)        AND ZPV.[Estatus del Cliente] NOT IN ('B','L')#(lf)    -- ZJV Join#(lf)    LEFT JOIN [DATAKOF_MX_USERS].[kof].[MEX_KOF_SAP_CLIENTE_FULL] ZJV#(lf)        ON c.[Num_Cliente] = ZJV.[Num_Cliente]#(lf)        AND ZJV.[Tipo Plan de Visita] = 'ZJV'#(lf)        AND ZJV.[Estatus del Cliente] NOT IN ('B','L')#(lf)    -- ZTK Join#(lf)    LEFT JOIN [DATAKOF_MX_USERS].[kof].[MEX_KOF_SAP_CLIENTE_FULL] ZTK#(lf)        ON c.[Num_Cliente] = ZTK.[Num_Cliente]#(lf)        AND ZTK.[Tipo Plan de Visita] = 'ZTK'#(lf)        AND ZTK.[Estatus del Cliente] NOT IN ('B','L')#(lf)#(tab)-- Canal Estrategico Join#(lf)#(tab)LEFT JOIN [kof].[MEX_KOF_SAP_DIM_CLIENTE] c2#(lf)#(tab)#(tab)ON c.[Num_Cliente] = c2.[CLIENTE]#(lf)#(lf)WHERE #(lf)    c.[Tipo Plan de Visita] IN ('ZPV', 'ZJV', 'ZTK')#(lf)    AND c.[Estatus del Cliente] NOT IN ('B','L')#(lf)    --AND c.[Anio_a] NOT IN ('9999')#(lf)#(lf)ORDER BY c.[Num_Cliente];#(lf)"]),
+    #"Ajuste tipos1" = Table.TransformColumnTypes(Origen,{{"ID_SAP", type text}, {"RITMO_ZPV", Int64.Type}, {"RITMO_ZTK", Int64.Type}, {"RITMO_ZJV", Int64.Type}}),
+    #"Domingos ZPV" = Table.ReplaceValue(#"Ajuste tipos1","D","",Replacer.ReplaceText,{"FV_ZPV"}),
+    #"Domingos ZTK" = Table.ReplaceValue(#"Domingos ZPV","D","",Replacer.ReplaceText,{"FV_ZTK"}),
+    #"Domingos ZJV" = Table.ReplaceValue(#"Domingos ZTK","D","",Replacer.ReplaceText,{"FV_ZJV"}),
+    #"Calcula FS de ZPV" = Table.AddColumn(#"Domingos ZJV", "FS_ZPV", each Text.Length([FV_ZPV]) / [RITMO_ZPV]),
+    #"Columnas reordenadas" = Table.ReorderColumns(#"Calcula FS de ZPV",{"ID_SAP", "NOMBRE", "LONGITUD", "LATITUD", "MODALIDAD", "ZONA", "UO", "CANAL", "GRUPO_RM1", "CANAL_KOF_KEY", "CANAL_KOF_DESC", "GRUPO_CANAL_SAP", "MTDO_VTA_ZPV", "RUTA_ZPV", "FV_ZPV", "FS_ZPV", "RITMO_ZPV", "MTDO_VTA_ZTK", "RUTA_ZTK", "FV_ZTK", "RITMO_ZTK", "MTDO_VTA_ZJV", "RUTA_ZJV", "FV_ZJV", "RITMO_ZJV", "CENTRO_SUMINISTRO", "RUTA_REPARTO"}),
+    #"Calcula FS de ZTK" = Table.AddColumn(#"Columnas reordenadas", "FS_ZTK", each Text.Length([FV_ZTK]) / [RITMO_ZTK]),
+    #"Reordena columnas2" = Table.ReorderColumns(#"Calcula FS de ZTK",{"ID_SAP", "NOMBRE", "LONGITUD", "LATITUD", "MODALIDAD", "ZONA", "UO", "CANAL", "GRUPO_RM1", "CANAL_KOF_KEY", "CANAL_KOF_DESC", "GRUPO_CANAL_SAP", "MTDO_VTA_ZPV", "RUTA_ZPV", "FV_ZPV", "FS_ZPV", "RITMO_ZPV", "MTDO_VTA_ZTK", "RUTA_ZTK", "FV_ZTK", "FS_ZTK", "RITMO_ZTK", "MTDO_VTA_ZJV", "RUTA_ZJV", "FV_ZJV", "RITMO_ZJV", "CENTRO_SUMINISTRO", "RUTA_REPARTO"}),
+    #"Calcula FS de ZJV" = Table.AddColumn(#"Reordena columnas2", "FS_ZJV", each Text.Length([FV_ZJV]) / [RITMO_ZJV]),
+    #"Reordena columnas1" = Table.ReorderColumns(#"Calcula FS de ZJV",{"ID_SAP", "NOMBRE", "LONGITUD", "LATITUD", "MODALIDAD", "ZONA", "UO", "CANAL", "GRUPO_RM1", "CANAL_KOF_KEY", "CANAL_KOF_DESC", "GRUPO_CANAL_SAP", "MTDO_VTA_ZPV", "RUTA_ZPV", "FV_ZPV", "FS_ZPV", "RITMO_ZPV", "MTDO_VTA_ZTK", "RUTA_ZTK", "FV_ZTK", "FS_ZTK", "RITMO_ZTK", "MTDO_VTA_ZJV", "RUTA_ZJV", "FV_ZJV", "FS_ZJV", "RITMO_ZJV", "CENTRO_SUMINISTRO", "RUTA_REPARTO"}),
+    #"Quita duplicados Planner" = Table.Distinct(#"Reordena columnas1", {"ID_SAP"}),
+    #"Combina GEC RTM" = Table.NestedJoin(#"Quita duplicados Planner", {"ID_SAP"}, GEC_RTM, {"CLIENTE"}, "GEC_RTM_DIC_24", JoinKind.LeftOuter),
+    #"Se expandió GEC_RTM_DIC_24" = Table.ExpandTableColumn(#"Combina GEC RTM", "GEC_RTM_DIC_24", {"_MADUREZ_CTE", "Estatus_Cte", "GEC_RTM"}, {"GEC_RTM_DIC_24._MADUREZ_CTE", "GEC_RTM_DIC_24.Estatus_Cte", "GEC_RTM_DIC_24.GEC_RTM"}),
+    #"Rellena GEC RTM con SAP" = Table.AddColumn(#"Se expandió GEC_RTM_DIC_24", "Personalizado", each if [GEC_RTM_DIC_24.GEC_RTM] = null then [GEC_SAP] else [GEC_RTM_DIC_24.GEC_RTM]),
+    #"Columnas renombradas GEC RTM" = Table.RenameColumns(#"Rellena GEC RTM con SAP",{{"Personalizado", "GEC_RTM4.0"}}),
+    #"Separa FV L ZPV" = Table.AddColumn(#"Columnas renombradas GEC RTM", "L ZPV", each if [FV_ZPV] = null then 0 else if Text.Contains([FV_ZPV], "L") then 1 else 0),
+    #"Separa FV L ZTK" = Table.AddColumn(#"Separa FV L ZPV", "L ZTK", each if [FV_ZTK] = null then 0 else if Text.Contains([FV_ZTK], "L") then 1 else 0),
+    #"Separa FV M ZPV" = Table.AddColumn(#"Separa FV L ZTK", "M ZPV", each if [FV_ZPV] = null then 0 else if Text.Contains([FV_ZPV], "M") then 1 else 0),
+    #"Separa FV M ZTK" = Table.AddColumn(#"Separa FV M ZPV", "M ZTK", each if [FV_ZTK] = null then 0 else if Text.Contains([FV_ZTK], "M") then 1 else 0),
+    #"Separa FV R ZPV" = Table.AddColumn(#"Separa FV M ZTK", "R ZPV", each if [FV_ZPV] = null then 0 else if Text.Contains([FV_ZPV], "R") then 1 else 0),
+    #"Separa FV R ZTK" = Table.AddColumn(#"Separa FV R ZPV", "R ZTK", each if [FV_ZTK] = null then 0 else if Text.Contains([FV_ZTK], "R") then 1 else 0),
+    #"Separa FV J ZPV" = Table.AddColumn(#"Separa FV R ZTK", "J ZPV", each if [FV_ZPV] = null then 0 else if Text.Contains([FV_ZPV], "J") then 1 else 0),
+    #"Separa FV J ZTK" = Table.AddColumn(#"Separa FV J ZPV", "J ZTK", each if [FV_ZJV] = null then 0 else if Text.Contains([FV_ZJV], "J") then 1 else 0),
+    #"Separa FV V ZPV" = Table.AddColumn(#"Separa FV J ZTK", "V ZPV", each if [FV_ZPV] = null then 0 else if Text.Contains([FV_ZPV], "V") then 1 else 0),
+    #"Separa FV V ZTK" = Table.AddColumn(#"Separa FV V ZPV", "V ZTK", each if [FV_ZTK] = null then 0 else if Text.Contains([FV_ZTK], "V") then 1 else 0),
+    #"Separa FV S ZPV" = Table.AddColumn(#"Separa FV V ZTK", "S ZPV", each if [FV_ZPV] = null then 0 else if Text.Contains([FV_ZPV], "S") then 1 else 0),
+    #"Separa FV S ZTK" = Table.AddColumn(#"Separa FV S ZPV", "S ZTK", each if [FV_ZTK] = null then 0 else if Text.Contains([FV_ZTK], "S") then 1 else 0),
+    #"Cambia tipo de FV individual" = Table.TransformColumnTypes(#"Separa FV S ZTK",{{"L ZPV", Int64.Type}, {"M ZPV", Int64.Type}, {"R ZPV", Int64.Type}, {"J ZPV", Int64.Type}, {"V ZPV", Int64.Type}, {"S ZPV", Int64.Type}}),
+    #"Combina catalogo reparto" = Table.NestedJoin(#"Cambia tipo de FV individual", {"RUTA_REPARTO"}, Catálogo_Reparto, {"RutaReparto"}, "Catálogo_Reparto", JoinKind.LeftOuter),
+    #"Se expandió Catálogo_Reparto" = Table.ExpandTableColumn(#"Combina catalogo reparto", "Catálogo_Reparto", {"EsquemaReparto"}, {"Catálogo_Reparto.EsquemaReparto"}),
+    #"Reordena columnas" = Table.ReorderColumns(#"Se expandió Catálogo_Reparto",{"ID_SAP", "NOMBRE", "GEC_SAP", "GEC_RTM_DIC_24.GEC_RTM", "GEC_RTM4.0", "MODALIDAD", "LONGITUD", "LATITUD", "ZONA", "UO", "CANAL", "GRUPO_RM1", "CANAL_KOF_KEY", "CANAL_KOF_DESC", "GRUPO_CANAL_SAP", "MTDO_VTA_ZPV", "RUTA_ZPV", "FV_ZPV", "L ZPV", "M ZPV", "R ZPV", "J ZPV", "V ZPV", "S ZPV", "FS_ZPV", "RITMO_ZPV", "MTDO_VTA_ZTK", "RUTA_ZTK", "FV_ZTK", "FS_ZTK", "RITMO_ZTK", "MTDO_VTA_ZJV", "RUTA_ZJV", "FV_ZJV", "FS_ZJV", "RITMO_ZJV", "CENTRO_SUMINISTRO", "RUTA_REPARTO", "Catálogo_Reparto.EsquemaReparto"}),
+    #"Busca esquema reparto" = Table.AddColumn(#"Reordena columnas", "ESQUEMA REPARTO", each if [Catálogo_Reparto.EsquemaReparto] is null then "No catalogado" else [Catálogo_Reparto.EsquemaReparto]),
+    #"Validación MTDO y DA" = Table.AddColumn(#"Busca esquema reparto", "Mtdo_Validación", each if ([ESQUEMA REPARTO] = "Distribuidor Autorizado" and ([MTDO_VTA_ZPV] = "2DA")) 
+     or ([MTDO_VTA_ZPV] = "1DA") 
+then "OK" 
+else "NOT OK"),
+    #"Ordena columnas planner" = Table.ReorderColumns(#"Validación MTDO y DA",{"ID_SAP", "NOMBRE", "GEC_SAP", "GEC_RTM_DIC_24.GEC_RTM", "GEC_RTM4.0", "MODALIDAD", "LONGITUD", "LATITUD", "ZONA", "UO", "CANAL", "GRUPO_RM1", "CANAL_KOF_KEY", "CANAL_KOF_DESC", "GRUPO_CANAL_SAP", "RUTA_ZPV", "MTDO_VTA_ZPV", "Mtdo_Validación", "FV_ZPV", "L ZPV", "M ZPV", "R ZPV", "J ZPV", "V ZPV", "S ZPV", "FS_ZPV", "RITMO_ZPV", "MTDO_VTA_ZTK", "RUTA_ZTK", "FV_ZTK", "FS_ZTK", "RITMO_ZTK", "MTDO_VTA_ZJV", "RUTA_ZJV", "FV_ZJV", "FS_ZJV", "RITMO_ZJV", "CENTRO_SUMINISTRO", "RUTA_REPARTO", "Catálogo_Reparto.EsquemaReparto", "ESQUEMA REPARTO"}),
+    #"Completa cte con venta" = Table.AddColumn(#"Ordena columnas planner", "VENTA CERO", each if [GEC_RTM_DIC_24.Estatus_Cte] = null then "Con Venta" else [GEC_RTM_DIC_24.Estatus_Cte]),
+    #"Cambia NULL en ZPV" = Table.ReplaceValue(#"Completa cte con venta",null,0,Replacer.ReplaceValue,{"MTDO_VTA_ZPV", "FV_ZPV", "RITMO_ZPV", "MTDO_VTA_ZTK"}),
+    #"Cambia tipo FS ZTK" = Table.TransformColumnTypes(#"Cambia NULL en ZPV",{{"FS_ZTK", Int64.Type}}),
+    #"Corrige NULL FS ZPV" = Table.ReplaceValue(#"Cambia tipo FS ZTK",null,0,Replacer.ReplaceValue,{"FS_ZPV"}),
+    #"Largo FV ZPV" = Table.AddColumn(#"Corrige NULL FS ZPV", "FV_ZPV_LEN", each Text.Length([FV_ZPV])),
+    #"Largo FV ZTK" = Table.AddColumn(#"Largo FV ZPV", "FV_ZTK_LEN", each Text.Length([FV_ZTK])),
+    #"Largo FV ZJV" = Table.AddColumn(#"Largo FV ZTK", "FV_ZJV_LEN", each Text.Length([FV_ZJV])),
+    #"Corrige FV vacía" = Table.ReplaceErrorValues(#"Largo FV ZJV", {{"FV_ZPV_LEN", 0}, {"FV_ZTK_LEN", 0}, {"FV_ZJV_LEN", 0}}),
+    #"Identifica DA" = Table.AddColumn(#"Corrige FV vacía", "ESQUEMA_DA", each if Text.Contains([ESQUEMA REPARTO], "Distribuidor Autorizado") then "DA" else "No DA"),
+    #"Identifica Ahijados" = Table.AddColumn(#"Identifica DA", "Ahijados", each if [CADENA] <> null and Text.Contains([CADENA], "8367") then "Ahijados" else "No Ahijados"),
+    #"Empalme ZPV-ZTK L" = Table.AddColumn(#"Identifica Ahijados", "L ZPV-ZTK", each if [L ZPV]+[L ZTK] > 0 then 1 else 0),
+    #"Empalme ZPV-ZTK M" = Table.AddColumn(#"Empalme ZPV-ZTK L", "M ZPV-ZTK", each if [M ZPV]+[M ZTK] > 0 then 1 else 0),
+    #"Empalme ZPV-ZTK R" = Table.AddColumn(#"Empalme ZPV-ZTK M", "R ZPV-ZTK", each if [R ZPV]+[R ZTK] > 0 then 1 else 0),
+    #"Empalme ZPV-ZTK J" = Table.AddColumn(#"Empalme ZPV-ZTK R", "J ZPV-ZTK", each if [J ZPV]+[J ZTK] > 0 then 1 else 0),
+    #"Empalme ZPV-ZTK V" = Table.AddColumn(#"Empalme ZPV-ZTK J", "V ZPV-ZTK", each if [V ZPV]+[V ZTK] > 0 then 1 else 0),
+    #"Empalme ZPV-ZTK S" = Table.AddColumn(#"Empalme ZPV-ZTK V", "S ZPV-ZTK", each if [S ZPV]+[S ZTK] > 0 then 1 else 0),
+    #"Calculo FV Ponderada" = Table.AddColumn(#"Empalme ZPV-ZTK S", "FS Ponderada", each [#"L ZPV-ZTK"]+[#"M ZPV-ZTK"]+[#"R ZPV-ZTK"]+[#"J ZPV-ZTK"]+[#"V ZPV-ZTK"]+[#"S ZPV-ZTK"]),
+    #"Frecuencia Ponderada" = Table.AddColumn(#"Calculo FV Ponderada", "FV Ponderada", each (if [#"L ZPV-ZTK"] = 1 then "L" else "") &
+(if [#"M ZPV-ZTK"] = 1 then "M" else "") &
+(if [#"R ZPV-ZTK"] = 1 then "R" else "") &
+(if [#"J ZPV-ZTK"] = 1 then "J" else "") &
+(if [#"V ZPV-ZTK"] = 1 then "V" else "") &
+(if [#"S ZPV-ZTK"] = 1 then "S" else "")),
+    #"Validación Mtdo ZJV" = Table.AddColumn(#"Frecuencia Ponderada", "Validación Mtdo ZJV", each if ([MTDO_VTA_ZJV] = "2DA")
+or ([MTDO_VTA_ZJV] = "1DA") 
+then "OK" 
+else "NOT OK"),
+    #"Validar Ritmo ZJV" = Table.AddColumn(#"Validación Mtdo ZJV", "Validación Ritmo ZJV", each if [RITMO_ZJV] = 1 then "OK" else "NOT OK"),
+    #"Validar Ritmo ZPV" = Table.AddColumn(#"Validar Ritmo ZJV", "Validación Ritmo ZPV", each if ([RITMO_ZPV] = 1)
+or ([RITMO_ZPV] = 2)
+or ([RITMO_ZPV] = 4 and [VENTA CERO] = "Venta Cero 3M")
+then "OK"
+else "NOT OK"),
+    #"Separa FV L ZJV" = Table.AddColumn(#"Validar Ritmo ZPV", "L ZJV", each if [FV_ZJV] = null then 0 else if Text.Contains([FV_ZJV], "L") then 1 else 0),
+    #"Separa FV M ZJV" = Table.AddColumn(#"Separa FV L ZJV", "M ZJV", each if [FV_ZJV] = null then 0 else if Text.Contains([FV_ZJV], "M") then 1 else 0),
+    #"Separa FV R ZJV" = Table.AddColumn(#"Separa FV M ZJV", "R ZJV", each if [FV_ZJV] = null then 0 else if Text.Contains([FV_ZJV], "R") then 1 else 0),
+    #"Separa FV J ZJV" = Table.AddColumn(#"Separa FV R ZJV", "J ZJV", each if [FV_ZJV] = null then 0 else if Text.Contains([FV_ZJV], "J") then 1 else 0),
+    #"Separa FV V ZJV" = Table.AddColumn(#"Separa FV J ZJV", "V ZJV", each if [FV_ZJV] = null then 0 else if Text.Contains([FV_ZJV], "V") then 1 else 0),
+    #"Separa FV S ZJV" = Table.AddColumn(#"Separa FV V ZJV", "S ZJV", each if [FV_ZJV] = null then 0 else if Text.Contains([FV_ZJV], "S") then 1 else 0),
+    #"Personalizada agregada" = Table.AddColumn(#"Separa FV S ZJV", "Empalme Farmer - Digital", each let
+    ztk = Text.Upper(Text.Trim(try Text.From([FV_ZTK]) otherwise "")),
+    zjv = Text.Upper(Text.Trim(try Text.From([FV_ZJV]) otherwise "")),
+    resultado = 
+        if zjv = "" or ztk = "" then 
+            "Sin datos"
+        else if List.Count(List.Select(Text.ToList(zjv), each not Text.Contains(ztk, _))) = 0 then 
+            "Coincide" 
+        else 
+            "No coincide"
+in
+    resultado),
+    #"Errores reemplazados" = Table.ReplaceErrorValues(#"Personalizada agregada", {{"Empalme Farmer - Digital", "NA"}}),
+    #"Tipo cambiado" = Table.TransformColumnTypes(#"Errores reemplazados",{{"FS_ZPV", Currency.Type}})
+in
+    #"Tipo cambiado"
